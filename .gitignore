@@ -1,0 +1,45 @@
+# Compiled Object files
+*.o
+*.obj
+*.lo
+*.slo
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Debug files
+*.dSYM/
+*.stackdump
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# Visual Studio
+.vscode/
+*.code-workspace
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Other
+*.log
+*.tmp
+*.swp
+.DS_Store
+.idea/
