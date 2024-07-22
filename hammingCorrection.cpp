@@ -55,11 +55,30 @@ std::string hammingEncode(const std::string &data)
     return std::string(encodedData.begin(), encodedData.end());
 }
 
+// Función para verificar que el input sea binario
+bool isBinary(const std::string &str)
+{
+    for (char c : str)
+    {
+        if (c != '0' && c != '1')
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 int main()
 {
     std::string message;
     std::cout << "Enter a binary message: ";
     std::cin >> message;
+
+    if (!isBinary(message))
+    {
+        std::cerr << "Error: The message must be binary (contain only 0s and 1s)." << std::endl;
+        return 1;
+    }
 
     std::string encodedMessage = hammingEncode(message);
     std::cout << "Encoded message: " << encodedMessage << std::endl;
