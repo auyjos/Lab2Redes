@@ -43,3 +43,6 @@ Makefile
 *.swp
 .DS_Store
 .idea/
+hammingCorrection.ilk
+hammingCorrection.pdb
+vc140.pdb
