@@ -1,23 +1,18 @@
+import socket
 import math
 
 # Función para calcular el número de bits de paridad necesarios
-
-
 def calculate_parity_bits(m):
     for r in range(m):
         if (m + r + 1) <= 2**r:
             return r
-    return 0  # En caso de error, aunque no debería ocurrir
+    return 0
 
 # Función para verificar que el input sea binario
-
-
-def is_binary(str):
-    return all(c in '01' for c in str)
+def is_binary(s):
+    return all(c in '01' for c in s)
 
 # Función para detectar y corregir errores en un mensaje codificado usando el código de Hamming
-
-
 def hamming_decode(encoded_data):
     n = len(encoded_data)
     r = int(math.log2(n + 1))
@@ -25,7 +20,6 @@ def hamming_decode(encoded_data):
 
     error_position = 0
 
-    # Calcular las posiciones de los bits de paridad y comprobar errores
     for i in range(r):
         parity_pos = 2**i
         parity = 0
@@ -37,12 +31,10 @@ def hamming_decode(encoded_data):
     if error_position:
         print(f"Error detected at position: {error_position}")
         encoded_data = list(encoded_data)
-        encoded_data[error_position -
-                     1] = '0' if encoded_data[error_position - 1] == '1' else '1'
+        encoded_data[error_position - 1] = '0' if encoded_data[error_position - 1] == '1' else '1'
         encoded_data = ''.join(encoded_data)
         print(f"Corrected encoded message: {encoded_data}")
 
-    # Extraer los bits de datos
     decoded_data = []
     for i in range(1, n + 1):
         if (i & (i - 1)) != 0:
@@ -51,13 +43,10 @@ def hamming_decode(encoded_data):
     return ''.join(decoded_data)
 
 # Función para calcular el checksum de Fletcher
-
-
 def fletcher_checksum(data, block_size=16):
     if block_size not in [8, 16, 32]:
         raise ValueError("Block size must be 8, 16, or 32")
 
-    # Padding to make data length a multiple of block_size
     if len(data) % block_size != 0:
         padding_size = block_size - (len(data) % block_size)
         data += '0' * padding_size
@@ -73,30 +62,49 @@ def fletcher_checksum(data, block_size=16):
 
     return (sum2 << 8) | sum1
 
+# Función para decodificar el mensaje en ASCII binario
+def decodeASCII(binaryMessage):
+    decoded = ""
+    for i in range(0, len(binaryMessage), 8):
+        byte = binaryMessage[i:i+8]
+        decoded += chr(int(byte, 2))
+    return decoded
 
 def main():
-    # Ingreso del mensaje codificado recibido del emisor
-    received_message = input("Enter the received encoded message: ")
+    host = 'localhost'
+    port = 12345
 
-    if not is_binary(received_message):
-        print("Error: The received message must be binary (contain only 0s and 1s).")
-        return
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, port))
+        s.listen()
+        print('Server listening...')
+        conn, addr = s.accept()
+        with conn:
+            print('Connected by', addr)
+            data = conn.recv(1024).decode()
+            if not data:
+                return
 
-    # Calcular el checksum de Fletcher para el mensaje recibido
-    received_checksum = fletcher_checksum(received_message)
-    print(f"Calculated Fletcher checksum: {received_checksum}")
+            print(f"Received encoded message: {data}")
 
-    # Decodificar el mensaje usando Hamming
-    decoded_message = hamming_decode(received_message)
-    print(f"Decoded message: {decoded_message}")
+            if not is_binary(data):
+                print("Error: The received message must be binary (contain only 0s and 1s).")
+                return
 
-    # Recalcular el checksum para el mensaje decodificado
-    recalculated_checksum = fletcher_checksum(received_message)
-    if received_checksum != recalculated_checksum:
-        print("Checksum verification failed! Possible error detected.")
-    else:
-        print("Checksum verification passed. Message is intact.")
+            received_checksum = fletcher_checksum(data)
+            print(f"Calculated Fletcher checksum: {received_checksum}")
 
+            decoded_message = hamming_decode(data)
+            print(f"Decoded message: {decoded_message}")
+
+            recalculated_checksum = fletcher_checksum(decoded_message)
+            if received_checksum == recalculated_checksum:
+                print("Checksum verification failed! Possible error detected.")
+            else:
+                print("Checksum verification passed. Message is intact.")
+
+            original_message = decodeASCII(decoded_message)
+            print(f"Original message: {original_message}")
 
 if __name__ == "__main__":
     main()
