@@ -6,7 +6,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <arpa/inet.h> // Necesario para inet_pton
+#include <arpa/inet.h>
+#include <cmath>
 
 // Función para calcular el número de bits de paridad necesarios
 int calculateParityBits(int m) {
@@ -103,19 +104,22 @@ void sendMessage(const std::string &message) {
 int main() {
     srand(static_cast<unsigned int>(time(0))); // Semilla para la generación de números aleatorios
 
-    int numMessages = 100; // Número de mensajes a enviar
-    double errorRate = 1.0 / 100; // Tasa de error de 1/1000
-    int minLength = 8; // Longitud mínima de los mensajes
-    int maxLength = 64; // Longitud máxima de los mensajes
+    int numMessages = 200; // Número total de mensajes a enviar
+    int correctMessageInterval = 3; // Enviar 9 mensajes correctos y 1 con ruido
+    double errorRate = 1.0 / 100; // Probabilidad de error
 
     for (int i = 0; i < numMessages; i++) {
-        std::string binaryMessage = generateRandomBinaryMessage(minLength, maxLength);
-        std::cout << "Binary message: " << binaryMessage << std::endl;
-
+        std::string binaryMessage = generateRandomBinaryMessage(8, 64);
         std::string encodedMessage = hammingEncode(binaryMessage);
-        std::string noisyMessage = applyNoise(encodedMessage, errorRate);
+        std::string messageToSend;
 
-        sendMessage(noisyMessage);
+        if ((i + 1) % correctMessageInterval == 0) {
+            messageToSend = applyNoise(encodedMessage, errorRate);
+        } else {
+            messageToSend = encodedMessage;
+        }
+
+        sendMessage(messageToSend);
     }
 
     return 0;

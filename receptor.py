@@ -87,6 +87,9 @@ def main():
     error_messages = 0
     error_positions = []
     all_errors = []
+    checksum_errors = []
+    message_lengths = []
+    parity_bits_counts = []
 
     while True:
         conn, addr = server_socket.accept()
@@ -103,63 +106,89 @@ def main():
                 conn.send(b'Error')
                 continue
 
-            received_checksum = fletcher_checksum(received_message)
+            # Registrar longitud del mensaje y bits de paridad
+            message_length = len(received_message)
+            parity_bits_count = calculate_parity_bits(message_length)
+            message_lengths.append(message_length)
+            parity_bits_counts.append(parity_bits_count)
+
+            # Calcular el checksum antes de cualquier corrección
+            original_checksum = fletcher_checksum(received_message)
+
+            # Decodificar el mensaje con Hamming
             decoded_message, error_position = hamming_decode(received_message)
-            recalculated_checksum = fletcher_checksum(decoded_message)
             
-            if received_checksum != recalculated_checksum:
-                print("Checksum verification failed! Possible error detected.")
+            # Calcular el checksum después de la corrección
+            corrected_checksum = fletcher_checksum(decoded_message)
+
+            # Comparar checksums
+            if original_checksum != corrected_checksum:
+                print(f"Checksum error detected: {original_checksum} != {corrected_checksum}")
+                checksum_errors.append(1)
+            else:
+                checksum_errors.append(0)
+
+            if error_position:
+                print(f"Error detected and corrected at position: {error_position}")
                 error_messages += 1
                 all_errors.append(1)
                 error_positions.append(error_position)
-                conn.send(b'Error')
             else:
-                print("Checksum verification passed. Message is intact.")
+                print("No errors detected.")
                 corrected_messages += 1
                 all_errors.append(0)
                 conn.send(b'Correct')
 
+            print(f"Received: {received_message}")
+            print(f"Decoded: {decodeASCII(decoded_message)}")
+
             received_messages += 1
-            original_message = decodeASCII(decoded_message)
-            print(f"Original message: {original_message}")
+            print(f"Total messages received: {received_messages}")
+            print(f"Corrected messages: {corrected_messages}")
+            print(f"Error messages: {error_messages}")
 
         conn.close()
         print("Connection closed.")
-        
-        # Mostrar estadísticas
-        print(f"Total messages received: {received_messages}")
-        print(f"Messages corrected: {corrected_messages}")
-        print(f"Messages with errors: {error_messages}")
 
-        # Graficar estadísticas
-        labels = ['Corrected', 'Errors']
-        sizes = [corrected_messages, error_messages]
-        colors = ['lightgreen', 'lightcoral']
-        explode = (0.1, 0)  # Explode the corrected messages
+        if received_messages >= 200:  # Ajusta esto según sea necesario
+            break
 
-        plt.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%', shadow=True, startangle=140)
-        plt.axis('equal')
-        plt.title('Message Correction Statistics')
-        plt.savefig('message_correction_statistics.png')  # Exportar gráfico
-        plt.close()
+    # Graficar estadísticas
+    # Graficar distribución de errores de posición
+    plt.hist(error_positions, bins=range(1, len(received_message) + 1), edgecolor='black')
+    plt.xlabel('Bit Position')
+    plt.ylabel('Number of Errors')
+    plt.title('Error Distribution')
+    plt.savefig('error_distribution.png')
+    plt.close()
 
-        # Graficar distribución de errores
-        plt.hist(all_errors, bins=[0, 1, 2], edgecolor='black')
-        plt.xticks([0, 1], ['Correct', 'Error'])
-        plt.xlabel('Message Status')
-        plt.ylabel('Frequency')
-        plt.title('Distribution of Errors')
-        plt.savefig('error_distribution.png')  # Exportar gráfico
-        plt.close()
+    # Graficar errores acumulados a lo largo del tiempo
+    x = np.arange(len(all_errors))
+    y = np.cumsum(all_errors)
+    plt.plot(x, y)
+    plt.xlabel('Messages')
+    plt.ylabel('Cumulative Errors')
+    plt.title('Cumulative Errors Over Time')
+    plt.savefig('cumulative_errors.png')
+    plt.close()
 
-        # Graficar posiciones de error
-        if error_positions:
-            plt.hist(error_positions, bins=range(1, len(received_message) + 2), edgecolor='black')
-            plt.xlabel('Position of Error')
-            plt.ylabel('Frequency')
-            plt.title('Error Positions in Messages')
-            plt.savefig('error_positions.png')  # Exportar gráfico
-            plt.close()
+    # Graficar errores de checksum a lo largo del tiempo
+    x = np.arange(len(checksum_errors))
+    y = np.cumsum(checksum_errors)
+    plt.plot(x, y)
+    plt.xlabel('Messages')
+    plt.ylabel('Checksum Errors')
+    plt.title('Checksum Errors Over Time')
+    plt.savefig('checksum_errors.png')
+    plt.close()
 
-if __name__ == "__main__":
+    # Graficar longitud de mensajes y bits de paridad
+    plt.scatter(message_lengths, parity_bits_counts)
+    plt.xlabel('Message Length')
+    plt.ylabel('Parity Bits Count')
+    plt.title('Message Length vs Parity Bits Count')
+    plt.savefig('message_length_vs_parity_bits.png')
+    plt.close()
+
+if __name__ == '__main__':
     main()
