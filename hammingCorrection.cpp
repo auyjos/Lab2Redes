@@ -1,49 +1,24 @@
 #include <iostream>
 #include <vector>
-#include <cmath>
-#include <string>
-#include <bitset>
 #include <cstdlib>
 #include <ctime>
 #include <cstring>
-#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <unistd.h>
+#include <arpa/inet.h> // Necesario para inet_pton
 
-#define PORT 12345
-#define ERROR_PROBABILITY 0.001
-
-// Funciones de la capa de presentación
-std::string charToBinary(char c) {
-    return std::bitset<8>(c).to_string();
-}
-
-std::string encodeASCII(const std::string &message) {
-    std::string encoded;
-    for (char c : message) {
-        encoded += charToBinary(c);
-    }
-    return encoded;
-}
-
-std::string decodeASCII(const std::string &binaryMessage) {
-    std::string decoded;
-    for (size_t i = 0; i < binaryMessage.size(); i += 8) {
-        std::bitset<8> byte(binaryMessage.substr(i, 8));
-        decoded += char(byte.to_ulong());
-    }
-    return decoded;
-}
-
-// Funciones de la capa de enlace
+// Función para calcular el número de bits de paridad necesarios
 int calculateParityBits(int m) {
     for (int r = 0; r < m; r++) {
-        if ((m + r + 1) <= std::pow(2, r)) {
+        if ((m + r + 1) <= (1 << r)) {
             return r;
         }
     }
-    return 0;
+    return 0; // En caso de error, aunque no debería ocurrir
 }
 
+// Función para codificar un mensaje usando el código de Hamming
 std::string hammingEncode(const std::string &data) {
     int m = data.size();
     int r = calculateParityBits(m);
@@ -62,7 +37,7 @@ std::string hammingEncode(const std::string &data) {
     }
 
     for (int i = 0; i < r; i++) {
-        int parityPos = std::pow(2, i);
+        int parityPos = 1 << i;
         int parity = 0;
         for (int j = 1; j <= n; j++) {
             if (j & parityPos) {
@@ -75,37 +50,49 @@ std::string hammingEncode(const std::string &data) {
     return std::string(encodedData.begin(), encodedData.end());
 }
 
-// Funciones de la capa de ruido
-std::string applyNoise(const std::string &data, double errorRate) {
-    std::string noisyData = data;
-    for (char &c : noisyData) {
-        if ((rand() / (double)RAND_MAX) < errorRate) {
-            c = (c == '0') ? '1' : '0';
+// Función para aplicar ruido a un mensaje con una probabilidad específica
+std::string applyNoise(const std::string &message, double errorRate) {
+    std::string noisyMessage = message;
+    for (size_t i = 0; i < noisyMessage.size(); ++i) {
+        if ((rand() / (RAND_MAX + 1.0)) < errorRate) {
+            noisyMessage[i] = (noisyMessage[i] == '0') ? '1' : '0';
         }
     }
-    return noisyData;
+    return noisyMessage;
 }
 
-// Funciones de la capa de transmisión
+// Función para generar un mensaje binario aleatorio de longitud aleatoria
+std::string generateRandomBinaryMessage(int minLength, int maxLength) {
+    int length = rand() % (maxLength - minLength + 1) + minLength;
+    std::string message;
+    for (int i = 0; i < length; i++) {
+        message += (rand() % 2) ? '1' : '0';
+    }
+    return message;
+}
+
+// Función para enviar un mensaje usando sockets
 void sendMessage(const std::string &message) {
-    int sock = 0;
-    struct sockaddr_in serv_addr;
-
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        std::cerr << "Socket creation error" << std::endl;
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        std::cerr << "Error creating socket" << std::endl;
         return;
     }
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(12345);
 
-    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
-        std::cerr << "Invalid address/ Address not supported" << std::endl;
+    // Convertir IP de texto a formato binario
+    if (inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr) <= 0) {
+        std::cerr << "Invalid address" << std::endl;
+        close(sock);
         return;
     }
 
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "Connection Failed" << std::endl;
+    if (connect(sock, (sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
+        std::cerr << "Connection failed" << std::endl;
+        close(sock);
         return;
     }
 
@@ -114,26 +101,22 @@ void sendMessage(const std::string &message) {
 }
 
 int main() {
-    srand(time(0));
-    std::string message, encodedMessage, noisyMessage;
+    srand(static_cast<unsigned int>(time(0))); // Semilla para la generación de números aleatorios
 
-    std::cout << "Enter a message: ";
-    std::getline(std::cin, message);
+    int numMessages = 100; // Número de mensajes a enviar
+    double errorRate = 1.0 / 100; // Tasa de error de 1/1000
+    int minLength = 8; // Longitud mínima de los mensajes
+    int maxLength = 64; // Longitud máxima de los mensajes
 
-    // Capa de presentación
-    std::string binaryMessage = encodeASCII(message);
-    std::cout << "Binary message: " << binaryMessage << std::endl;
+    for (int i = 0; i < numMessages; i++) {
+        std::string binaryMessage = generateRandomBinaryMessage(minLength, maxLength);
+        std::cout << "Binary message: " << binaryMessage << std::endl;
 
-    // Capa de enlace
-    encodedMessage = hammingEncode(binaryMessage);
-    std::cout << "Encoded message: " << encodedMessage << std::endl;
+        std::string encodedMessage = hammingEncode(binaryMessage);
+        std::string noisyMessage = applyNoise(encodedMessage, errorRate);
 
-    // Capa de ruido (aplicada automáticamente con probabilidad fija)
-    noisyMessage = applyNoise(encodedMessage, ERROR_PROBABILITY);
-    std::cout << "Noisy message: " << noisyMessage << std::endl;
-
-    // Capa de transmisión
-    sendMessage(noisyMessage);
+        sendMessage(noisyMessage);
+    }
 
     return 0;
 }
