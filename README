@@ -1,6 +1,4 @@
-Claro, aquí tienes un README detallado para tu proyecto:
 
----
 
 # Proyecto de Detección y Corrección de Errores
 
@@ -92,5 +90,3 @@ El código del receptor está escrito en Python y realiza las siguientes funcion
 - Wright, G. (2022, July 11). What is Hamming code and how does it work?. WhatIs. [Enlace](https://www.techtarget.com/whatis/definition/Hamming-code#:~:text=Hamming%20code%20is%20an%20error,after%20its%20inventor%2C%20Richard%20W.)
 - Fletcher’s checksum. Tutorialspoint. [Enlace](https://www.tutorialspoint.com/fletcher-s-checksum)
 - PU5EPX, E. P. (n.d.). Error detection and correction. EPx. [Enlace](https://epxx.co/artigos/edc_en.html)
-
----
