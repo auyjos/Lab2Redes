@@ -3,11 +3,11 @@
 #include <cstdlib>
 #include <ctime>
 #include <cstring>
-#include <bitset>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <arpa/inet.h> // Necesario para inet_pton
+#include <arpa/inet.h>
+#include <cmath>
 
 // Función para calcular el número de bits de paridad necesarios
 int calculateParityBits(int m) {
@@ -62,6 +62,16 @@ std::string applyNoise(const std::string &message, double errorRate) {
     return noisyMessage;
 }
 
+// Función para generar un mensaje binario aleatorio de longitud aleatoria
+std::string generateRandomBinaryMessage(int minLength, int maxLength) {
+    int length = rand() % (maxLength - minLength + 1) + minLength;
+    std::string message;
+    for (int i = 0; i < length; i++) {
+        message += (rand() % 2) ? '1' : '0';
+    }
+    return message;
+}
+
 // Función para enviar un mensaje usando sockets
 void sendMessage(const std::string &message) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -94,26 +104,22 @@ void sendMessage(const std::string &message) {
 int main() {
     srand(static_cast<unsigned int>(time(0))); // Semilla para la generación de números aleatorios
 
-    int numMessages = 10; // Número de mensajes a enviar
-    double errorRate = 0.001; // Probabilidad de error
+    int numMessages = 200; // Número total de mensajes a enviar
+    int correctMessageInterval = 3; // Enviar 9 mensajes correctos y 1 con ruido
+    double errorRate = 1.0 / 100; // Probabilidad de error
 
     for (int i = 0; i < numMessages; i++) {
-        std::string asciiMessage;
-        std::cout << "Enter the ASCII message to send: ";
-        std::getline(std::cin, asciiMessage);
-
-        std::string binaryMessage;
-        
-        // Convertir el mensaje ASCII a binario
-        for (char c : asciiMessage) {
-            binaryMessage += std::bitset<8>(c).to_string();
-        }
-        
+        std::string binaryMessage = generateRandomBinaryMessage(8, 64);
         std::string encodedMessage = hammingEncode(binaryMessage);
-        std::string noisyMessage = applyNoise(encodedMessage, errorRate);
+        std::string messageToSend;
 
-        sendMessage(noisyMessage);
-        std::cout << "Message sent: " << noisyMessage << std::endl;
+        if ((i + 1) % correctMessageInterval == 0) {
+            messageToSend = applyNoise(encodedMessage, errorRate);
+        } else {
+            messageToSend = encodedMessage;
+        }
+
+        sendMessage(messageToSend);
     }
 
     return 0;

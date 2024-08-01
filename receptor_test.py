@@ -65,10 +65,10 @@ def fletcher_checksum(data, block_size=16):
     return (sum2 << 8) | sum1
 
 # Función para decodificar mensaje en ASCII
-def decode_ascii(binary_message):
+def decodeASCII(binaryMessage):
     decoded = ""
-    for i in range(0, len(binary_message), 8):
-        byte = binary_message[i:i + 8]
+    for i in range(0, len(binaryMessage), 8):
+        byte = binaryMessage[i:i + 8]
         decoded += chr(int(byte, 2))
     return decoded
 
@@ -88,6 +88,8 @@ def main():
     error_positions = []
     all_errors = []
     checksum_errors = []
+    message_lengths = []
+    parity_bits_counts = []
 
     while True:
         conn, addr = server_socket.accept()
@@ -103,6 +105,12 @@ def main():
                 print("Error: The received message must be binary (contain only 0s and 1s).")
                 conn.send(b'Error')
                 continue
+
+            # Registrar longitud del mensaje y bits de paridad
+            message_length = len(received_message)
+            parity_bits_count = calculate_parity_bits(message_length)
+            message_lengths.append(message_length)
+            parity_bits_counts.append(parity_bits_count)
 
             # Calcular el checksum antes de cualquier corrección
             original_checksum = fletcher_checksum(received_message)
@@ -132,7 +140,7 @@ def main():
                 conn.send(b'Correct')
 
             print(f"Received: {received_message}")
-            print(f"Decoded: {decode_ascii(decoded_message)}")
+            print(f"Decoded: {decodeASCII(decoded_message)}")
 
             received_messages += 1
             print(f"Total messages received: {received_messages}")
@@ -142,9 +150,45 @@ def main():
         conn.close()
         print("Connection closed.")
 
-        if received_messages >= 100:  # Ajusta esto según sea necesario
+        if received_messages >= 200:  # Ajusta esto según sea necesario
             break
 
+    # Graficar estadísticas
+    # Graficar distribución de errores de posición
+    plt.hist(error_positions, bins=range(1, len(received_message) + 1), edgecolor='black')
+    plt.xlabel('Bit Position')
+    plt.ylabel('Number of Errors')
+    plt.title('Error Distribution')
+    plt.savefig('error_distribution.png')
+    plt.close()
+
+    # Graficar errores acumulados a lo largo del tiempo
+    x = np.arange(len(all_errors))
+    y = np.cumsum(all_errors)
+    plt.plot(x, y)
+    plt.xlabel('Messages')
+    plt.ylabel('Cumulative Errors')
+    plt.title('Cumulative Errors Over Time')
+    plt.savefig('cumulative_errors.png')
+    plt.close()
+
+    # Graficar errores de checksum a lo largo del tiempo
+    x = np.arange(len(checksum_errors))
+    y = np.cumsum(checksum_errors)
+    plt.plot(x, y)
+    plt.xlabel('Messages')
+    plt.ylabel('Checksum Errors')
+    plt.title('Checksum Errors Over Time')
+    plt.savefig('checksum_errors.png')
+    plt.close()
+
+    # Graficar longitud de mensajes y bits de paridad
+    plt.scatter(message_lengths, parity_bits_counts)
+    plt.xlabel('Message Length')
+    plt.ylabel('Parity Bits Count')
+    plt.title('Message Length vs Parity Bits Count')
+    plt.savefig('message_length_vs_parity_bits.png')
+    plt.close()
 
 if __name__ == '__main__':
     main()
